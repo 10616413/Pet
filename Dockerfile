@@ -1,8 +1,17 @@
-# syntax=docker/dockerfile:1
-
-FROM node:18-alpine
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
 WORKDIR /app
-COPY . .
-RUN yarn install --production
-CMD ["node", "src/index.js"]
-EXPOSE 5192
+
+# Copy everything
+COPY . ./
+
+# Restore as distinct layers
+RUN dotnet restore
+
+# Build and publish a release
+RUN dotnet publish -c Release -o out
+
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
+WORKDIR /app
+COPY --from=build-env /app/out .
+ENTRYPOINT ["dotnet", "DotNet.Docker.dll"]
